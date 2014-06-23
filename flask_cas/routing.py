@@ -1,5 +1,6 @@
 import flask
 from flask import current_app
+import xml.etree.ElementTree as ET
 from .cas_urls import create_cas_login_url
 from .cas_urls import create_cas_logout_url
 from .cas_urls import create_cas_validate_url
@@ -90,13 +91,28 @@ def validate(ticket):
     current_app.logger.debug("Making GET request to {}".format(
         cas_validate_url))
 
-    try:
-        (isValid, username) = urlopen(cas_validate_url).readlines()
-        isValid = True if isValid.strip() == b'yes' else False
-        username = username.strip().decode('utf8', 'ignore')
-    except ValueError:
-        current_app.logger.error("CAS returned unexpected result")
-        isValid = False
+    data = urlopen(cas_validate_url).read()
+    # if data parses as xml, it's CAS 3.0
+    ET.register_namespace('cas', 'http://www.yale.edu/tp/cas')
+    tree = ET.fromstring(data)
+    if tree:
+        # parse the uid, if not availble the login will have an error
+        user = tree.find('**/cas:uid', namespaces=dict(cas='http://www.yale.edu/tp/cas'))
+        print user
+        if user != None and len(user.text)>0:
+            username = user.text
+            print username
+            isValid = True
+        else:
+            isValid = False
+    else:
+        try:
+            (isValid, username) = data
+            isValid = True if isValid.strip() == b'yes' else False
+            username = username.strip().decode('utf8', 'ignore')
+        except ValueError:
+            current_app.logger.error("CAS returned unexpected result")
+            isValid = False
 
     if isValid:
         current_app.logger.debug("valid")
