@@ -93,18 +93,13 @@ def validate(ticket):
 
     data = urlopen(cas_validate_url).read()
     # if data parses as xml, it's CAS 3.0
-    ET.register_namespace('cas', 'http://www.yale.edu/tp/cas')
     tree = ET.fromstring(data)
     if tree:
-        # parse the uid, if not availble the login will have an error
-        user = tree.find('**/cas:uid', namespaces=dict(cas='http://www.yale.edu/tp/cas'))
-        print user
-        if user != None and len(user.text)>0:
+        # parse the user, if not availble the login validation will fail
+        user = tree.find('*/cas:user', namespaces=dict(cas='http://www.yale.edu/tp/cas'))
+        isValid = user != None
+        if isValid:
             username = user.text
-            print username
-            isValid = True
-        else:
-            isValid = False
     else:
         try:
             (isValid, username) = data
